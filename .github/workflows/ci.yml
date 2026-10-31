@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Dependências
+        run: pip install -r requirements-dev.txt
+
+      # Os testes não chamam o Gemini (cliente falso), então não precisam de chave.
+      - name: Testes (pytest)
+        run: pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    # GITHUB_TOKEN precisa de packages:write para publicar no GHCR.
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/matheus5339/portfolio-rag
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build da imagem
+        run: docker build -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" .
+
+      - name: Publicar no GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:${{ github.sha }}"

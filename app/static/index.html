@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfólio RAG</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --tx:#1d1f23; --mut:#646b75; --ac:#2457d6; --bd:#dfe3e8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14161a; --card:#1e2127; --tx:#e9ebee; --mut:#a2a9b3; --ac:#7aa2ff; --bd:#30343c; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:16px/1.55 system-ui, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  .sub { color: var(--mut); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--bd); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  form { display: flex; gap: 8px; flex-wrap: wrap; }
+  input { flex: 1 1 260px; padding: 10px; border-radius: 8px; border: 1px solid var(--bd); background: var(--bg); color: var(--tx); font: inherit; }
+  button { background: var(--ac); color: #fff; border: 0; border-radius: 8px; padding: 10px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .ex { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .ex button { background: transparent; color: var(--ac); border: 1px solid var(--bd); font-weight: 500; padding: 4px 10px; font-size: 14px; }
+  #resposta { white-space: pre-wrap; }
+  ol { padding-left: 20px; margin: 8px 0 0; font-size: 14px; }
+  a { color: var(--ac); }
+  .mut { color: var(--mut); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Pergunte sobre os projetos do Matheus</h1>
+  <p class="sub">Assistente RAG: busca trechos nos READMEs públicos do
+    <a href="https://github.com/Matheus5339">GitHub dele</a> e responde só com base neles, citando a fonte [n].</p>
+
+  <div class="card">
+    <form id="f">
+      <input id="q" placeholder="Ex.: Quais projetos usam Docker?" maxlength="300" required>
+      <button id="b">Perguntar</button>
+    </form>
+    <div class="ex" id="ex"></div>
+  </div>
+
+  <div class="card" id="saida" hidden>
+    <div id="resposta"></div>
+    <ol id="fontes"></ol>
+  </div>
+
+  <p class="mut" id="base"></p>
+</main>
+<script>
+const exemplos = ["Quais projetos usam Docker?", "Ele já trabalhou com PostgreSQL?", "O que é o pico-db?", "Que experiência ele tem com restaurante?"];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ex = document.getElementById("ex");
+for (const e of exemplos) {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = e;
+  b.onclick = () => { document.getElementById("q").value = e; perguntar(); };
+  ex.appendChild(b);
+}
+
+async function perguntar() {
+  const btn = document.getElementById("b");
+  btn.disabled = true; btn.textContent = "Buscando…";
+  const saida = document.getElementById("saida");
+  try {
+    const r = await fetch("/api/perguntar", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pergunta: document.getElementById("q").value }) });
+    const d = await r.json();
+    saida.hidden = false;
+    document.getElementById("resposta").textContent = r.ok ? d.resposta : (typeof d.detail === "string" ? d.detail : "Pergunta inválida.");
+    document.getElementById("fontes").innerHTML = r.ok
+      ? d.fontes.map(f => `<li value="${f.n}"><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.repo)}</a> › ${esc(f.secao)} <span class="mut">(relevância ${f.nota})</span></li>`).join("")
+      : "";
+  } catch (e) {
+    saida.hidden = false;
+    document.getElementById("resposta").textContent = "Falha de rede.";
+  } finally {
+    btn.disabled = false; btn.textContent = "Perguntar";
+  }
+}
+document.getElementById("f").onsubmit = ev => { ev.preventDefault(); perguntar(); };
+fetch("/api/repos").then(r => r.json()).then(rs => {
+  document.getElementById("base").textContent = `Base: ${rs.length} READMEs (${rs.join(", ")}).`;
+});
+</script>
+</body>
+</html>
