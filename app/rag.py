@@ -8,7 +8,10 @@ from google.genai import types
 
 from app.indice import Indice
 
-MODELO = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+MODELO = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+# Tempo limite de 60 s por chamada: sem isso, uma chamada presa travava a requisição para sempre.
+# Sem novas tentativas automáticas: a cota grátis é pequena e o erro 429 já vira aviso na tela.
+OPCOES_HTTP = types.HttpOptions(timeout=60_000, retry_options=types.HttpRetryOptions(attempts=1))
 SEM_RESPOSTA = "Não encontrei isso nos READMEs dos repositórios públicos."
 
 INSTRUCOES = f"""Você responde perguntas sobre os projetos de portfólio de Matheus de Oliveira Pereira,
@@ -37,7 +40,7 @@ def responder(pergunta: str, indice: Indice, cliente=None, k: int = 5) -> dict:
         # Sem trecho relevante: nem chama o modelo (economiza cota e evita invenção).
         return {"resposta": SEM_RESPOSTA, "fontes": []}
 
-    cliente = cliente or genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    cliente = cliente or genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options=OPCOES_HTTP)
     resposta = cliente.models.generate_content(
         model=MODELO,
         contents=montar_prompt(pergunta, achados),

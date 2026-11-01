@@ -62,3 +62,18 @@ def test_limite_e_validacao(monkeypatch):
     assert api.post("/api/perguntar", json={"pergunta": "x" * 301}).status_code == 422
     assert api.post("/api/perguntar", json={"pergunta": "usa Go?"}).status_code == 200
     assert api.post("/api/perguntar", json={"pergunta": "usa Go?"}).status_code == 429
+
+
+def test_cota_do_provedor_vira_429_amigavel(monkeypatch):
+    class ErroCota(Exception):
+        code = 429
+
+    def estoura(p, i):
+        raise ErroCota("quota")
+
+    monkeypatch.setenv("GEMINI_API_KEY", "teste")
+    monkeypatch.setattr(main, "_chamadas", main.deque())
+    monkeypatch.setattr(main.rag, "responder", estoura)
+    r = api.post("/api/perguntar", json={"pergunta": "usa Go?"})
+    assert r.status_code == 429
+    assert "Aguarde 1 minuto" in r.json()["detail"]

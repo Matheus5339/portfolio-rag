@@ -71,5 +71,7 @@ def perguntar(p: Pergunta):
     try:
         return rag.responder(p.pergunta, indice)
     except Exception as erro:  # erro do provedor (cota, rede): não vaza detalhes
+        if getattr(erro, "code", None) == 429:
+            raise HTTPException(429, "A cota gratuita da IA por minuto acabou. Aguarde 1 minuto e tente de novo.")
         print(f"erro no RAG: {type(erro).__name__}: {erro}")
         raise HTTPException(502, "Falha ao consultar o modelo de IA. Tente de novo em instantes.")
