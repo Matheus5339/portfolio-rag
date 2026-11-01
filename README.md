@@ -5,7 +5,7 @@ Assistente que responde perguntas sobre os meus projetos usando **RAG**
 READMEs públicos do meu GitHub e pede ao Gemini uma resposta baseada **só**
 neles, **citando a fonte** de cada informação.
 
-**Demo no ar:** _(link após o deploy)_
+**Demo no ar:** https://portfolio-rag.calmwave-44962e56.brazilsouth.azurecontainerapps.io (o primeiro acesso pode levar alguns segundos: o app desliga quando ninguém usa)
 
 Construído do zero em um dia (31/10/2026).
 
